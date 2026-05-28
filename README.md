@@ -337,10 +337,14 @@ This project uses open-source models and libraries. Check individual component l
 - [ ] Cloud deployment options
 - [ ] Mobile app support
 - [ ] Bulk URL-based processing
+- [ ] Implementation of Korean Translator for Manhwa / Webtoon
 - [ ] Implementation of Multiple Translator Engine
+- [ ] Implementation of Auto-Detect Language with Card UI Indicator
 - [ ] Implementation of comic-text-detector
 - [ ] Implementation of LaMa Inpainting
 - [ ] Implementation of Custom Typesetting Engines
+- [ ] Implementation of Scraping (NHentai.net, and others)
+- [ ] Improvement of Context-Aware Translation (Offline)
 
 ## 📞 Support
 

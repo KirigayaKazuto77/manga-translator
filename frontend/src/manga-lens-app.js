@@ -16,22 +16,22 @@ export class MangaLensApp extends LitElement {
     isDragging: { type: Boolean },
     downloadFormat: { type: String },
     lightboxImage: { type: String },
-    configChanged: { type: Boolean } // NEW: Tracks if settings were altered
+    configChanged: { type: Boolean } // Tracks if settings were altered
   };
 
   static styles = css`
     :host {
       display: flex;
-      height: 100vh; /* Lock to viewport height */
-      overflow: hidden; /* Prevent whole-page scrolling */
+      height: 100vh;
+      overflow: hidden; 
       font-family: system-ui, -apple-system, sans-serif;
       background-color: #121212;
       color: #e0e0e0;
     }
     .sidebar {
       width: 320px;
-      height: 100%; /* Fill viewport height */
-      box-sizing: border-box; /* Keep padding internal */
+      height: 100%; 
+      box-sizing: border-box; 
       background: #1e1e1e;
       padding: 24px;
       border-right: 1px solid #333;
@@ -39,17 +39,17 @@ export class MangaLensApp extends LitElement {
       flex-direction: column;
       gap: 20px;
       flex-shrink: 0;
-      overflow-y: auto; /* Independent scrollbar */
+      overflow-y: auto; 
     }
     .main-content {
       flex: 1;
-      height: 100%; /* Fill viewport height */
-      box-sizing: border-box; /* Keep padding internal */
+      height: 100%; 
+      box-sizing: border-box; 
       padding: 32px;
       display: flex;
       flex-direction: column;
       gap: 24px;
-      overflow-y: auto; /* Independent scrollbar */
+      overflow-y: auto; 
     }
     .control-group {
       display: flex;
@@ -97,7 +97,31 @@ export class MangaLensApp extends LitElement {
       padding: 12px 16px; background: #252525; border-bottom: 1px solid #333;
       display: flex; justify-content: space-between; align-items: center;
     }
-    .filename { font-weight: 600; font-size: 0.9rem; color: #ccc; }
+    .filename { font-weight: 600; font-size: 0.9rem; color: #ccc; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    /* --- NEW BADGE UI STYLES --- */
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .header-badges { display: flex; gap: 6px; align-items: center; }
+    .badge {
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-engine { background-color: rgba(37, 99, 235, 0.15); color: #93c5fd; border: 1px solid #2563eb; }
+    .badge-fallback { background-color: rgba(220, 38, 38, 0.15); color: #fca5a5; border: 1px solid #dc2626; }
+    .badge-llm-success { background-color: rgba(5, 150, 105, 0.15); color: #6ee7b7; border: 1px solid #059669; }
+    .badge-llm-failed { background-color: rgba(185, 28, 28, 0.15); color: #fca5a5; border: 1px solid #dc2626; }
+    .badge-lang { background-color: rgba(147, 51, 234, 0.15); color: #d8b4fe; border: 1px solid #9333ea; }
+    .badge-llm-off { background-color: rgba(115, 115, 115, 0.15); color: #d4d4d4; border: 1px solid #525252; }
+    /* --------------------------- */
+
     .card-body { display: flex; gap: 1px; background: #333; }
     .pane {
       flex: 1; background: #121212; padding: 16px; 
@@ -153,7 +177,6 @@ export class MangaLensApp extends LitElement {
       opacity: 0.7;
     }
 
-    /* Add cursor effect to your panels to indicate they are clickable */
     .pane img {
       cursor: zoom-in;
       transition: transform 0.2s;
@@ -181,7 +204,6 @@ export class MangaLensApp extends LitElement {
     this.configChanged = false;
   }
 
-  // Helper to flag that settings were altered
   markConfigChanged() {
     this.configChanged = true;
   }
@@ -200,7 +222,6 @@ export class MangaLensApp extends LitElement {
     this.isDragging = false;
     
     const files = Array.from(e.dataTransfer ? e.dataTransfer.files : e.target.files);
-    
     files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
     
     const newItems = files.map(file => ({
@@ -210,7 +231,10 @@ export class MangaLensApp extends LitElement {
       preview: URL.createObjectURL(file),
       status: 'pending', 
       resultBase64: null,
-      errorMessage: ''
+      errorMessage: '',
+      engines: [],
+      llmStatus: 'Off',
+      language: 'Pending'
     }));
     
     this.queue = [...this.queue, ...newItems];
@@ -239,14 +263,13 @@ export class MangaLensApp extends LitElement {
   async processQueue() {
     this.isProcessing = true;
     
-    // NEW LOGIC: If configuration changed, or ALL items are already completed, force a reprocess
     const allCompleted = this.queue.length > 0 && this.queue.every(i => i.status === 'completed');
     
     if (this.configChanged || allCompleted) {
       this.queue.forEach(i => {
         if (i.status === 'completed' || i.status === 'error') {
           i.status = 'pending';
-          i.resultBase64 = null; // Clear old image so the UI shows the spinner again
+          i.resultBase64 = null; 
         }
       });
       this.configChanged = false;
@@ -281,6 +304,12 @@ export class MangaLensApp extends LitElement {
         if (data.success) {
           this.queue[i].resultBase64 = data.image_base64;
           this.queue[i].status = 'completed';
+          
+          // NEW: Map tracking metadata to this specific panel's state
+          this.queue[i].engines = data.engines || [this.engine];
+          this.queue[i].llmStatus = data.llm_status || 'Off';
+          this.queue[i].language = data.language || 'Unknown';
+          
         } else {
           this.queue[i].status = 'error';
           this.queue[i].errorMessage = data.error || data.message || "Unknown server error.";
@@ -484,10 +513,10 @@ export class MangaLensApp extends LitElement {
               this.fontSize = input.value || '40'; 
             } else if (mode === 'auto') {
               input.disabled = true;
-              this.fontSize = 'auto'; // Passes 'auto' to Python backend
+              this.fontSize = 'auto'; 
             } else {
               input.disabled = true;
-              this.fontSize = 'default'; // Passes 'default' (Fallback to 40px)
+              this.fontSize = 'default'; 
             }
             this.markConfigChanged();
           }}>
@@ -544,14 +573,38 @@ export class MangaLensApp extends LitElement {
         ${this.queue.map(item => html`
           <div class="card">
             <div class="card-header">
-              <span class="filename">${item.filename}</span>
-              <button class="btn-danger" style="padding: 4px 8px; font-size: 12px;"
-                      @click=${() => this.removeItem(item.id)}
-                      ?disabled=${this.isProcessing}>
-                ✕ Remove
-              </button>
+              <span class="filename" title="${item.filename}">${item.filename}</span>
+              
+              <div class="header-actions">
+                ${item.status === 'completed' ? html`
+                  <div class="header-badges">
+                    <span class="badge badge-lang">
+                      🌐 ${item.language}
+                    </span>
+
+                    ${item.engines && item.engines.length > 0 ? item.engines.map(eng => html`
+                      <span class="badge ${eng.includes('Fallback') || eng === 'None' ? 'badge-fallback' : 'badge-engine'}">
+                        ⚙️ ${eng}
+                      </span>
+                    `) : ''}
+                    
+                    <span class="badge ${
+                      item.llmStatus === 'Off' ? 'badge-llm-off' : 
+                      item.llmStatus.includes('Failed') ? 'badge-llm-failed' : 
+                      'badge-llm-success'
+                    }">
+                      🧠 LLM: ${item.llmStatus}
+                    </span>
+                  </div>
+                ` : ''}
+                
+                <button class="btn-danger" style="padding: 4px 8px; font-size: 12px;"
+                        @click=${() => this.removeItem(item.id)}
+                        ?disabled=${this.isProcessing}>
+                  ✕ Remove
+                </button>
+              </div>
             </div>
-            
             <div class="card-body">
               <div class="pane">
                 <span class="pane-title">ORIGINAL</span>
@@ -597,7 +650,6 @@ export class MangaLensApp extends LitElement {
           </div>
         `)}
       </div>
-
 
       ${this.lightboxImage ? html`
         <div class="lightbox" @click="${this.closeLightbox}">

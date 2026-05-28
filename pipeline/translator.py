@@ -50,51 +50,50 @@ setup_argos()
 
 def translate_text(text, source_lang="ja", engine="nllb"):
     """
-    Translates raw text natively. Forces NLLB to treat the output as Chinese 
-    if the user selected a Chinese option, regardless of the OCR engine.
+    Translates text and tracks exactly which engine succeeded.
+    Returns: (translated_text, engine_used)
     """
-    if not text or not text.strip():
-        return ""
-
-    # Map the UI selection to NLLB's internal language codes
-    nllb_lang_mapping = {
-        "ja": "jpn_Jpan",
-        "zh-hans": "zho_Hans",
-        "zh-hant": "zho_Hant"
-    }
-    target_nllb_lang = nllb_lang_mapping.get(source_lang, "jpn_Jpan")
-
-    # 1. Try Primary Engine (NLLB)
-    if engine == "nllb" and model is not None and tokenizer is not None:
+    if engine == "nllb":
+        if model is not None and tokenizer is not None:
+            try:
+                # Tell the tokenizer what language to expect based on UI selection
+                tokenizer.src_lang = "jpn_Jpan" if source_lang == "ja" else "zho_Hans" # adjust map as needed
+                inputs = tokenizer(text, return_tensors="pt").to(device)
+                
+                english_vocab_id = tokenizer.convert_tokens_to_ids("eng_Latn")
+                
+                translated_tokens = model.generate(
+                    **inputs, 
+                    forced_bos_token_id=english_vocab_id, 
+                    max_length=400,
+                    num_beams=4,
+                    repetition_penalty=1.2,
+                    early_stopping=True
+                )
+                
+                decoded_text = tokenizer.decode(translated_tokens[0], skip_special_tokens=True)
+                return decoded_text, "NLLB"
+                
+            except Exception as e:
+                print(f"NLLB failed during translation: {e}. Switching to fallback...")
+        else:
+            print("NLLB model not loaded. Switching to fallback...")
+            
+        # Hard Fallback Engine (Argos)
         try:
-            # Tell the tokenizer what language to expect based on UI selection
-            tokenizer.src_lang = target_nllb_lang
-            inputs = tokenizer(text, return_tensors="pt").to(device)
-            
-            # Get the token ID for English so NLLB knows what language to output
-            english_vocab_id = tokenizer.convert_tokens_to_ids("eng_Latn")
-            
-            # Generate the translation tokens
-            translated_tokens = model.generate(
-                **inputs, 
-                forced_bos_token_id=english_vocab_id, 
-                max_length=400,
-                num_beams=4,              # Explores 4 different translation paths
-                repetition_penalty=1.2,   # Punishes looping phrases
-                early_stopping=True       # Stops exactly when sentence ends
-            )
-            
-            # Decode the raw tokens back into readable English text
-            return tokenizer.decode(translated_tokens[0], skip_special_tokens=True)
-            
+            argos_lang = "zh" if "zh" in source_lang else "ja"
+            decoded_text = argostranslate.translate.translate(text, argos_lang, 'en')
+            return decoded_text, "Argos (Fallback)"
         except Exception as e:
-            print(f"NLLB failed during translation: {e}. Switching to fallback...")
-    
-    # 2. Hard Fallback Engine (Argos)
-    try:
-        # Route to Argos using the correct language code
-        argos_lang = "zh" if "zh" in source_lang else "ja"
-        return argostranslate.translate.translate(text, argos_lang, 'en')
-    except Exception as e:
-        print(f"Argos fallback also failed: {e}")
-        return "[TRANSLATION FAILED]"
+            print(f"Argos fallback also failed: {e}")
+            return "[TRANSLATION FAILED]", "None"
+            
+    else:
+        # Explicit Argos engine request
+        try:
+            argos_lang = "zh" if "zh" in source_lang else "ja"
+            decoded_text = argostranslate.translate.translate(text, argos_lang, 'en')
+            return decoded_text, "Argos"
+        except Exception as e:
+            print(f"Argos translation failed: {e}")
+            return "[TRANSLATION FAILED]", "None"

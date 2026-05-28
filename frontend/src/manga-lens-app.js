@@ -14,19 +14,23 @@ export class MangaLensApp extends LitElement {
     queue: { type: Array },
     isProcessing: { type: Boolean },
     isDragging: { type: Boolean },
-    downloadFormat: { type: String }
+    downloadFormat: { type: String },
+    configChanged: { type: Boolean } // NEW: Tracks if settings were altered
   };
 
   static styles = css`
     :host {
       display: flex;
-      min-height: 100vh;
+      height: 100vh; /* Lock to viewport height */
+      overflow: hidden; /* Prevent whole-page scrolling */
       font-family: system-ui, -apple-system, sans-serif;
       background-color: #121212;
       color: #e0e0e0;
     }
     .sidebar {
       width: 320px;
+      height: 100%; /* Fill viewport height */
+      box-sizing: border-box; /* Keep padding internal */
       background: #1e1e1e;
       padding: 24px;
       border-right: 1px solid #333;
@@ -34,15 +38,17 @@ export class MangaLensApp extends LitElement {
       flex-direction: column;
       gap: 20px;
       flex-shrink: 0;
-      overflow-y: auto;
+      overflow-y: auto; /* Independent scrollbar */
     }
     .main-content {
       flex: 1;
+      height: 100%; /* Fill viewport height */
+      box-sizing: border-box; /* Keep padding internal */
       padding: 32px;
       display: flex;
       flex-direction: column;
       gap: 24px;
-      overflow-y: auto;
+      overflow-y: auto; /* Independent scrollbar */
     }
     .control-group {
       display: flex;
@@ -84,7 +90,7 @@ export class MangaLensApp extends LitElement {
     /* Queue Cards */
     .card {
       background: #1e1e1e; border: 1px solid #333; border-radius: 12px;
-      overflow: hidden; display: flex; flex-direction: column;
+      overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0;
     }
     .card-header {
       padding: 12px 16px; background: #252525; border-bottom: 1px solid #333;
@@ -126,11 +132,17 @@ export class MangaLensApp extends LitElement {
     this.ollamaUrl = 'http://127.0.0.1:11434';
     this.renderStyle = 'white_fill';
     this.fontFamily = 'default';
-    this.fontSize = 'auto';
+    this.fontSize = 'default';
     this.downloadFormat = 'image/png';
     this.queue = [];
     this.isProcessing = false;
     this.isDragging = false;
+    this.configChanged = false;
+  }
+
+  // Helper to flag that settings were altered
+  markConfigChanged() {
+    this.configChanged = true;
   }
 
   // --- Drag & Drop Handlers ---
@@ -146,14 +158,10 @@ export class MangaLensApp extends LitElement {
     e.preventDefault();
     this.isDragging = false;
     
-    // 1. Convert the FileList object into a standard JS Array
     const files = Array.from(e.dataTransfer ? e.dataTransfer.files : e.target.files);
     
-    // 2. Sort the current batch of files alphanumerically by filename
-    // The 'numeric: true' option ensures "page_10" comes AFTER "page_2"
     files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
     
-    // 3. Map the sorted files into our queue object structure
     const newItems = files.map(file => ({
       id: crypto.randomUUID(), 
       file,
@@ -164,13 +172,12 @@ export class MangaLensApp extends LitElement {
       errorMessage: ''
     }));
     
-    // 4. Append the newly sorted batch to the bottom of the existing queue
     this.queue = [...this.queue, ...newItems];
   }
 
   // --- Queue Management ---
   removeItem(id) {
-    if (this.isProcessing) return; // Prevent deletion while GPU is active
+    if (this.isProcessing) return; 
     this.queue = this.queue.filter(item => item.id !== id);
   }
   clearQueue() {
@@ -182,6 +189,20 @@ export class MangaLensApp extends LitElement {
   async processQueue() {
     this.isProcessing = true;
     
+    // NEW LOGIC: If configuration changed, or ALL items are already completed, force a reprocess
+    const allCompleted = this.queue.length > 0 && this.queue.every(i => i.status === 'completed');
+    
+    if (this.configChanged || allCompleted) {
+      this.queue.forEach(i => {
+        if (i.status === 'completed' || i.status === 'error') {
+          i.status = 'pending';
+          i.resultBase64 = null; // Clear old image so the UI shows the spinner again
+        }
+      });
+      this.configChanged = false;
+      this.requestUpdate();
+    }
+
     for (let i = 0; i < this.queue.length; i++) {
       if (this.queue[i].status !== 'pending' && this.queue[i].status !== 'error') continue;
       
@@ -225,18 +246,14 @@ export class MangaLensApp extends LitElement {
 
   // --- Download Engine (Canvas format conversion) ---
   async downloadImage(base64, originalFilename) {
-    // Determine extension based on selected format
     const ext = this.downloadFormat === 'image/jpeg' ? 'jpg' : 
                 this.downloadFormat === 'image/webp' ? 'webp' : 'png';
                 
-    // Create new filename
     const nameWithoutExt = originalFilename.substring(0, originalFilename.lastIndexOf('.')) || originalFilename;
     const newFilename = `${nameWithoutExt}_translated.${ext}`;
 
-    // If PNG is requested, we can use the raw base64 directly
     let finalDataUrl = base64;
 
-    // If JPEG/WEBP is requested, convert base64 using a temporary canvas
     if (this.downloadFormat !== 'image/png') {
       finalDataUrl = await new Promise((resolve) => {
         const img = new Image();
@@ -245,19 +262,17 @@ export class MangaLensApp extends LitElement {
           canvas.width = img.width;
           canvas.height = img.height;
           const ctx = canvas.getContext('2d');
-          // Fill white background in case of transparent PNG to JPEG conversion
           if (ext === 'jpg') {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
           }
           ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL(this.downloadFormat, 0.95)); // 95% quality
+          resolve(canvas.toDataURL(this.downloadFormat, 0.95)); 
         };
         img.src = base64;
       });
     }
 
-    // Trigger download
     const link = document.createElement('a');
     link.href = finalDataUrl;
     link.download = newFilename;
@@ -270,7 +285,6 @@ export class MangaLensApp extends LitElement {
     const completedItems = this.queue.filter(i => i.status === 'completed');
     if (completedItems.length === 0) return;
 
-    // Lock the UI so the user knows the browser is working (Canvas + Zipping takes a moment)
     this.isProcessing = true;
     this.requestUpdate();
 
@@ -280,7 +294,6 @@ export class MangaLensApp extends LitElement {
       const ext = this.downloadFormat === 'image/jpeg' ? 'jpg' : 
                   this.downloadFormat === 'image/webp' ? 'webp' : 'png';
 
-      // 1. Process each image and add it to the Zip archive
       for (const item of completedItems) {
         const originalFilename = item.filename;
         const nameWithoutExt = originalFilename.substring(0, originalFilename.lastIndexOf('.')) || originalFilename;
@@ -288,7 +301,6 @@ export class MangaLensApp extends LitElement {
 
         let finalDataUrl = item.resultBase64;
 
-        // Apply the hidden Canvas conversion hack if they chose JPEG or WEBP
         if (this.downloadFormat !== 'image/png') {
           finalDataUrl = await new Promise((resolve) => {
             const img = new Image();
@@ -310,24 +322,18 @@ export class MangaLensApp extends LitElement {
           });
         }
 
-        // JSZip requires raw base64 data, so we strip the "data:image/png;base64," prefix
         const rawBase64Data = finalDataUrl.split(',')[1];
-        
-        // Add the file to the zip folder
         zip.file(newFilename, rawBase64Data, { base64: true });
       }
 
-      // 2. Generate the final zip file as a Blob
       const zipBlob = await zip.generateAsync({ type: 'blob' });
 
-      // 3. Trigger a single download for the Zip folder
       const link = document.createElement('a');
       link.href = URL.createObjectURL(zipBlob);
       link.download = `MangaLens_Translated_${Date.now()}.zip`;
       document.body.appendChild(link);
       link.click();
       
-      // Clean up the DOM and memory
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
 
@@ -335,7 +341,6 @@ export class MangaLensApp extends LitElement {
       console.error("Failed to generate zip file:", err);
       alert("There was an error creating the zip file. Check the console.");
     } finally {
-      // Unlock the UI
       this.isProcessing = false;
       this.requestUpdate();
     }
@@ -349,7 +354,7 @@ export class MangaLensApp extends LitElement {
         
         <div class="control-group">
           <label>Source Language</label>
-          <select @change=${(e) => this.sourceLang = e.target.value}>
+          <select @change=${(e) => { this.sourceLang = e.target.value; this.markConfigChanged(); }}>
             <option value="ja">Japanese (Supported)</option>
             <option value="zh">Chinese (Planned)</option>
             <option value="ko">Korean (Planned)</option>
@@ -359,7 +364,7 @@ export class MangaLensApp extends LitElement {
 
         <div class="control-group">
           <label>Translation Engine</label>
-          <select @change=${(e) => this.engine = e.target.value}>
+          <select @change=${(e) => { this.engine = e.target.value; this.markConfigChanged(); }}>
             <option value="nllb">NLLB-200 (Primary GPU)</option>
             <option value="argos">Argos Translate (Fallback)</option>
           </select>
@@ -367,7 +372,7 @@ export class MangaLensApp extends LitElement {
 
         <div class="control-group">
           <label>Context-Aware LLM Assist</label>
-          <select @change=${(e) => this.llmAssist = e.target.value}>
+          <select @change=${(e) => { this.llmAssist = e.target.value; this.markConfigChanged(); }}>
             <option value="off">Off (Raw Engine)</option>
             <option value="gemini">Gemini API</option>
             <option value="ollama">Local Ollama</option>
@@ -377,18 +382,18 @@ export class MangaLensApp extends LitElement {
         <div class="control-group ${this.llmAssist === 'gemini' ? '' : 'hidden'}">
           <label>Gemini API Key</label>
           <input type="password" placeholder="Leave empty to use .env" 
-                 @input=${(e) => this.geminiKey = e.target.value}>
+                 @input=${(e) => { this.geminiKey = e.target.value; this.markConfigChanged(); }}>
         </div>
 
         <div class="control-group ${this.llmAssist === 'ollama' ? '' : 'hidden'}">
           <label>Ollama Server URL</label>
           <input type="text" .value=${this.ollamaUrl} 
-                 @input=${(e) => this.ollamaUrl = e.target.value}>
+                 @input=${(e) => { this.ollamaUrl = e.target.value; this.markConfigChanged(); }}>
         </div>
 
         <div class="control-group">
           <label>Render Style</label>
-          <select @change=${(e) => this.renderStyle = e.target.value}>
+          <select @change=${(e) => { this.renderStyle = e.target.value; this.markConfigChanged(); }}>
             <option value="white_fill">White Bubble, Black Text</option>
             <option value="black_fill">Black Bubble, White Text</option>
             <option value="transparent">Transparent Overlay</option>
@@ -407,7 +412,7 @@ export class MangaLensApp extends LitElement {
 
         <div class="control-group">
           <label>Typography Settings</label>
-          <select @change=${(e) => this.fontFamily = e.target.value}>
+          <select @change=${(e) => { this.fontFamily = e.target.value; this.markConfigChanged(); }}>
             <option value="default">System Default</option>
             <option value="manga">Comic / Manga Style</option>
             <option value="sans-serif">Clean Sans-Serif</option>
@@ -423,8 +428,9 @@ export class MangaLensApp extends LitElement {
                 this.fontSize = input.value || '20'; 
               } else {
                 input.disabled = true;
-                this.fontSize = 'default'; // This is what app.py sends to the backend
+                this.fontSize = 'default'; 
               }
+              this.markConfigChanged();
             }}>
               <option value="default">Default</option>
               <option value="auto" disabled>Auto-Scale (Planned)</option>
@@ -433,7 +439,7 @@ export class MangaLensApp extends LitElement {
 
             <input type="number" id="manualSize" placeholder="px" 
                   style="width: 60px;" disabled
-                  @input=${(e) => this.fontSize = e.target.value}>
+                  @input=${(e) => { this.fontSize = e.target.value; this.markConfigChanged(); }}>
           </div>
         </div>
       </div>
@@ -444,7 +450,9 @@ export class MangaLensApp extends LitElement {
           <button class="btn-primary" 
                   @click=${this.processQueue} 
                   ?disabled=${this.isProcessing || this.queue.length === 0}>
-            ${this.isProcessing ? 'Processing Queue...' : 'Translate All Panels'}
+            ${this.isProcessing ? 'Processing Queue...' : 
+              (this.configChanged || (this.queue.length > 0 && this.queue.every(i => i.status === 'completed')) 
+               ? 'Reprocess All Panels' : 'Translate All Panels')}
           </button>
           
           <button @click=${this.clearQueue} 

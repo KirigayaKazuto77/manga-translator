@@ -49,7 +49,7 @@ def translate_endpoint():
         if not gemini_key:
             return jsonify({'error': 'Gemini API Key missing in UI and .env'}), 400
 
-    print(f"Config: Lang={source_lang}, Engine={engine}, LLM={llm_assist}")
+    print(f"Config: Lang={source_lang}, Engine={engine}, LLM={llm_assist}, FontSize={font_size}")
 
     # 2. Save the uploaded file temporarily
     filename = secure_filename(file.filename)
@@ -64,19 +64,13 @@ def translate_endpoint():
             os.remove(input_path)
             return jsonify({'success': True, 'message': 'No bubbles detected', 'data': []}), 200
 
-        # Phase 2: OCR (Note: manga-ocr is JA only. We will add CN/KR routing here later)
+        # Phase 2: OCR 
         ocr_results = extract_text(input_path, bubbles)
         
         # Phase 3: Translate
         final_data = []
         for item in ocr_results:
-            # We will eventually pass the 'engine' variable to translate_text
             english_text = translate_text(item['text'], source_lang=source_lang, engine=engine)
-            
-            # --- LLM REFINEMENT HOOK WILL GO HERE ---
-            # if llm_assist == 'gemini': ...
-            # if llm_assist == 'ollama': ...
-            
             item['english_text'] = english_text
             final_data.append(item)
 
@@ -103,5 +97,4 @@ def translate_endpoint():
 
 if __name__ == '__main__':
     print("Starting MangaLens API Gateway...")
-    # Run on port 5000, accessible to your local network
     app.run(host='0.0.0.0', port=5000, debug=True)

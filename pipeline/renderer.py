@@ -2,7 +2,6 @@
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-# Define the absolute path to your new fonts directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONTS_DIR = os.path.join(BASE_DIR, 'fonts')
 
@@ -13,7 +12,6 @@ def get_best_font(font_size, font_family="default"):
     except (ValueError, TypeError):
         size = 40 # Safe fallback
         
-    # Map the exact values from the frontend <select> to your physical filenames
     font_map = {
         "animeace": "animeace.otf",
         "mangatemple": "mangatemple.ttf",
@@ -22,24 +20,19 @@ def get_best_font(font_size, font_family="default"):
         "times": "times.ttf"
     }
     
-    # If the user selects "default", route it to a scalable system font like Arial
-    # rather than Pillow's unscalable default bitmap.
     if font_family == "default":
         font_filename = "arial.ttf"
     else:
         font_filename = font_map.get(font_family, "arial.ttf")
     
-    # First, try to load it from our custom fonts/ folder
     font_path = os.path.join(FONTS_DIR, font_filename)
     try:
         return ImageFont.truetype(font_path, size)
     except IOError:
-        # Fallback: Try loading it from the OS's native font directory (e.g., C:/Windows/Fonts)
         try:
             return ImageFont.truetype(font_filename, size)
         except IOError:
             print(f"[Warning] {font_filename} not found locally or in OS. Falling back to unscalable Pillow bitmap.")
-            # Absolute last resort to prevent crashes (will be tiny)
             return ImageFont.load_default()
 
 def wrap_text(text, font, max_width, draw):
@@ -68,7 +61,8 @@ def wrap_text(text, font, max_width, draw):
 
 def render_image(image_path, translated_data, output_path, style="white_fill", font_family="default", fixed_font_size="default"):
     """
-    Paints the translated text back onto the image using the selected style and strict typography settings.
+    Paints the translated text back onto the image using the selected style and typography settings.
+    Implements Dynamic Auto-Scaling if 'auto' is passed.
     """
     print(f"\nStarting Render Phase (Style: {style}, Font: {font_family}, Size: {fixed_font_size})...")
     
@@ -76,14 +70,6 @@ def render_image(image_path, translated_data, output_path, style="white_fill", f
     overlay = Image.new("RGBA", img.size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(overlay)
     text_draw = ImageDraw.Draw(overlay) 
-    
-    # 1. Initialize the specific font exactly ONCE using the fixed size
-    try:
-        base_font_size = 40 if fixed_font_size == "default" else int(fixed_font_size)
-    except ValueError:
-        base_font_size = 40
-        
-    font = get_best_font(base_font_size, font_family)
     
     for item in translated_data:
         x1, y1, x2, y2 = item['coordinates']
@@ -100,6 +86,8 @@ def render_image(image_path, translated_data, output_path, style="white_fill", f
         
         box_width = ix2 - ix1
         box_height = iy2 - iy1
+        target_width = box_width * 0.85
+        target_height = box_height * 0.85
         
         # Draw Background Bubble
         if style == "white_fill":
@@ -117,11 +105,42 @@ def render_image(image_path, translated_data, output_path, style="white_fill", f
         elif style == "outline":
             text_color = (255, 255, 255, 255) 
             outline_kwargs = {"stroke_width": 3, "stroke_fill": (0, 0, 0, 255)}
-        
-        # 2. Text Wrapping (NO dynamic scaling loop)
-        lines = wrap_text(text, font, box_width * 0.85, text_draw)
-        
-        # 3. Calculate Heights & Center Text
+
+        # Optimization Route: Auto-Scale or Fixed
+        if fixed_font_size == "auto":
+            chosen_font = None
+            chosen_lines = []
+            
+            # Descending validation loop (40px down to 15px)
+            for test_size in range(40, 14, -1):
+                test_font = get_best_font(test_size, font_family)
+                test_lines = wrap_text(text, test_font, target_width, text_draw)
+                
+                line_heights = [text_draw.textbbox((0, 0), line, font=test_font)[3] - text_draw.textbbox((0, 0), line, font=test_font)[1] for line in test_lines]
+                total_height = sum(line_heights) + (len(test_lines) * 4) 
+                
+                if total_height <= target_height:
+                    chosen_font = test_font
+                    chosen_lines = test_lines
+                    break
+            
+            # Absolute floor catch (Force 15px even if it overflows)
+            if chosen_font is None:
+                chosen_font = get_best_font(15, font_family)
+                chosen_lines = wrap_text(text, chosen_font, target_width, text_draw)
+                
+            font = chosen_font
+            lines = chosen_lines
+        else:
+            try:
+                base_font_size = int(fixed_font_size)
+            except ValueError:
+                base_font_size = 40
+                
+            font = get_best_font(base_font_size, font_family)
+            lines = wrap_text(text, font, target_width, text_draw)
+
+        # Execute final text painting
         line_heights = [text_draw.textbbox((0, 0), line, font=font)[3] - text_draw.textbbox((0, 0), line, font=font)[1] for line in lines]
         total_height = sum(line_heights) + (len(lines) * 4) 
         

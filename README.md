@@ -337,6 +337,10 @@ This project uses open-source models and libraries. Check individual component l
 - [ ] Cloud deployment options
 - [ ] Mobile app support
 - [ ] Bulk URL-based processing
+- [ ] Implementation of Multiple Translator Engine
+- [ ] Implementation of comic-text-detector
+- [ ] Implementation of LaMa Inpainting
+- [ ] Implementation of Custom Typesetting Engines
 
 ## 📞 Support
 

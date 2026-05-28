@@ -481,15 +481,18 @@ export class MangaLensApp extends LitElement {
             
             if (mode === 'manual') {
               input.disabled = false;
-              this.fontSize = input.value || '20'; 
+              this.fontSize = input.value || '40'; 
+            } else if (mode === 'auto') {
+              input.disabled = true;
+              this.fontSize = 'auto'; // Passes 'auto' to Python backend
             } else {
               input.disabled = true;
-              this.fontSize = 'default'; 
+              this.fontSize = 'default'; // Passes 'default' (Fallback to 40px)
             }
             this.markConfigChanged();
           }}>
             <option value="default">Default (40px)</option>
-            <option value="auto" disabled>Auto-Scale (Planned)</option>
+            <option value="auto">Auto-Scale (15px - 40px)</option>
             <option value="manual">Fixed Size</option>
           </select>
         </div>

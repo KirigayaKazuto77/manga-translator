@@ -145,18 +145,26 @@ export class MangaLensApp extends LitElement {
   handleDrop(e) {
     e.preventDefault();
     this.isDragging = false;
+    
+    // 1. Convert the FileList object into a standard JS Array
     const files = Array.from(e.dataTransfer ? e.dataTransfer.files : e.target.files);
     
+    // 2. Sort the current batch of files alphanumerically by filename
+    // The 'numeric: true' option ensures "page_10" comes AFTER "page_2"
+    files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+    
+    // 3. Map the sorted files into our queue object structure
     const newItems = files.map(file => ({
-      id: crypto.randomUUID(), // Unique ID for deletion targeting
+      id: crypto.randomUUID(), 
       file,
       filename: file.name,
       preview: URL.createObjectURL(file),
-      status: 'pending', // pending | processing | completed | error
+      status: 'pending', 
       resultBase64: null,
       errorMessage: ''
     }));
     
+    // 4. Append the newly sorted batch to the bottom of the existing queue
     this.queue = [...this.queue, ...newItems];
   }
 

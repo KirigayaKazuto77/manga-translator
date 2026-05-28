@@ -71,7 +71,7 @@ def translate_endpoint():
         final_data = []
         for item in ocr_results:
             # We will eventually pass the 'engine' variable to translate_text
-            english_text = translate_text(item['text'])
+            english_text = translate_text(item['text'], source_lang=source_lang, engine=engine)
             
             # --- LLM REFINEMENT HOOK WILL GO HERE ---
             # if llm_assist == 'gemini': ...

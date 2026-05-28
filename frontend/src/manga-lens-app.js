@@ -356,7 +356,8 @@ export class MangaLensApp extends LitElement {
           <label>Source Language</label>
           <select @change=${(e) => { this.sourceLang = e.target.value; this.markConfigChanged(); }}>
             <option value="ja">Japanese (Supported)</option>
-            <option value="zh">Chinese (Planned)</option>
+            <option value="zh-hant">Chinese Traditional (Testing)</option>
+            <option value="zh-hans">Chinese Simplified (Testing)</option>
             <option value="ko">Korean (Planned)</option>
             <option value="auto">Auto-Detect (Planned)</option>
           </select>

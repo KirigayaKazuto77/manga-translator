@@ -15,6 +15,7 @@ export class MangaLensApp extends LitElement {
     isProcessing: { type: Boolean },
     isDragging: { type: Boolean },
     downloadFormat: { type: String },
+    lightboxImage: { type: String },
     configChanged: { type: Boolean } // NEW: Tracks if settings were altered
   };
 
@@ -121,6 +122,46 @@ export class MangaLensApp extends LitElement {
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .error-msg { color: #ff6b6b; text-align: center; font-size: 0.9rem; padding: 16px; border: 1px dashed #ff6b6b; border-radius: 6px;}
     .hidden { display: none; }
+
+    /* Lightbox Styles */
+    .lightbox {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      flex-direction: column;
+    }
+
+    .lightbox img {
+      max-width: 90vw;
+      max-height: 80vh;
+      object-fit: contain;
+      border: 2px solid white;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    .lightbox-hint {
+      color: white;
+      margin-top: 15px;
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    /* Add cursor effect to your panels to indicate they are clickable */
+    .pane img {
+      cursor: zoom-in;
+      transition: transform 0.2s;
+    }
+
+    .pane img:hover {
+      transform: scale(1.02);
+    }
   `;
 
   constructor() {
@@ -183,6 +224,15 @@ export class MangaLensApp extends LitElement {
   clearQueue() {
     if (this.isProcessing) return;
     this.queue = [];
+  }
+
+  // --- Lightbox Preview ---
+  openLightbox(src) {
+    this.lightboxImage = src;
+  }
+
+  closeLightbox() {
+      this.lightboxImage = null;
   }
 
   // --- Processing Engine ---
@@ -502,7 +552,9 @@ export class MangaLensApp extends LitElement {
             <div class="card-body">
               <div class="pane">
                 <span class="pane-title">ORIGINAL</span>
-                <img src="${item.preview}" alt="Original Panel">
+                <img src="${item.preview}" alt="Original Panel" 
+                  @click=${() => this.openLightbox(item.preview)} 
+                  style="cursor: zoom-in;">
               </div>
               
               <div class="pane">
@@ -525,7 +577,9 @@ export class MangaLensApp extends LitElement {
                 ` : ''}
 
                 ${item.status === 'completed' ? html`
-                  <img src="${item.resultBase64}" alt="Translated Panel">
+                  <img src="${item.resultBase64}" alt="Translated Panel" 
+                    @click=${() => this.openLightbox(item.resultBase64)} 
+                    style="cursor: zoom-in;">
                 ` : ''}
               </div>
             </div>
@@ -540,6 +594,14 @@ export class MangaLensApp extends LitElement {
           </div>
         `)}
       </div>
+
+
+      ${this.lightboxImage ? html`
+        <div class="lightbox" @click="${this.closeLightbox}">
+          <img src="${this.lightboxImage}" alt="Zoomed Preview" @click="${(e) => e.stopPropagation()}">
+          <span class="lightbox-hint">Click anywhere to close</span>
+        </div>
+      ` : ''}
     `;
   }
 }

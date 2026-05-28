@@ -5,6 +5,7 @@ export class MangaLensApp extends LitElement {
   static properties = {
     sourceLang: { type: String },
     engine: { type: String },
+    ocrEngine: { type: String },
     llmAssist: { type: String },
     geminiKey: { type: String },
     ollamaUrl: { type: String },
@@ -191,6 +192,7 @@ export class MangaLensApp extends LitElement {
     super();
     this.sourceLang = 'ja';
     this.engine = 'nllb';
+    this.ocrEngine = 'manga-ocr';
     this.llmAssist = 'off';
     this.geminiKey = '';
     this.ollamaUrl = 'http://127.0.0.1:11434';
@@ -286,6 +288,7 @@ export class MangaLensApp extends LitElement {
       formData.append('image', this.queue[i].file);
       formData.append('source_lang', this.sourceLang);
       formData.append('engine', this.engine);
+      formData.append('ocr_engine', this.ocrEngine);
       formData.append('llm_assist', this.llmAssist);
       formData.append('gemini_key', this.geminiKey);
       formData.append('ollama_url', this.ollamaUrl);
@@ -433,12 +436,34 @@ export class MangaLensApp extends LitElement {
         
         <div class="control-group">
           <label>Source Language</label>
-          <select @change=${(e) => { this.sourceLang = e.target.value; this.markConfigChanged(); }}>
+          <select @change=${(e) => { 
+            this.sourceLang = e.target.value; 
+            
+            // Auto-route to the optimal local OCR Engine based on language
+            if (this.sourceLang === 'ja') {
+              this.ocrEngine = 'manga-ocr';
+            } else if (['ko'].includes(this.sourceLang)) {
+              this.ocrEngine = 'easyocr';
+            } else if (['zh-hant', 'zh-hans'].includes(this.sourceLang)) {
+              this.ocrEngine = 'rapidocr';
+            }
+            
+            this.markConfigChanged(); 
+          }}>
             <option value="ja">Japanese (Supported)</option>
             <option value="zh-hant">Chinese Traditional (Testing)</option>
             <option value="zh-hans">Chinese Simplified (Testing)</option>
-            <option value="ko">Korean (Planned)</option>
+            <option value="ko">Korean (Testing)</option>
             <option value="auto">Auto-Detect (Planned)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>OCR Engine</label>
+          <select @change=${(e) => { this.ocrEngine = e.target.value; this.markConfigChanged(); }} .value=${this.ocrEngine}>
+            <option value="manga-ocr">MangaOCR ${this.sourceLang === 'ja' ? '(Recommended)' : ''}</option>
+            <option value="rapidocr">RapidOCR ${['zh-hant', 'zh-hans'].includes(this.sourceLang) ? '(Recommended)' : ''}</option>
+            <option value="easyocr">EasyOCR ${this.sourceLang === 'ko' ? '(Recommended)' : ''}</option>
           </select>
         </div>
 
@@ -538,11 +563,9 @@ export class MangaLensApp extends LitElement {
         
         <div class="action-bar">
           <button class="btn-primary" 
-                  @click=${this.processQueue} 
-                  ?disabled=${this.isProcessing || this.queue.length === 0}>
-            ${this.isProcessing ? 'Processing Queue...' : 
-              (this.configChanged || (this.queue.length > 0 && this.queue.every(i => i.status === 'completed')) 
-               ? 'Reprocess All Panels' : 'Translate All Panels')}
+            @click=${this.processQueue} 
+            ?disabled=${this.isProcessing || this.queue.length === 0}>
+            Translate
           </button>
           
           <button @click=${this.clearQueue} 

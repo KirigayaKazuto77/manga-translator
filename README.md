@@ -342,7 +342,7 @@ This project uses open-source models and libraries. Check individual component l
 - [ ] Implementation of Auto-Detect Language with Card UI Indicator
 - [ ] Implementation of comic-text-detector
 - [ ] Implementation of LaMa Inpainting
-- [ ] Implementation of Custom Typesetting Engines
+- [ ] Implementation of Custom Typesetting Engines (PIL or Pillow)
 - [ ] Implementation of Scraping (NHentai.net, and others)
 - [ ] Improvement of Context-Aware Translation (Offline)
 

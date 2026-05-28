@@ -32,6 +32,7 @@ def translate_endpoint():
     # Extract the UI configurations
     source_lang = request.form.get('source_lang', 'ja')
     engine = request.form.get('engine', 'nllb')
+    ocr_engine = request.form.get('ocr_engine', 'manga-ocr')
     llm_assist = request.form.get('llm_assist', 'off')
     gemini_key = request.form.get('gemini_key', '')
     ollama_url = request.form.get('ollama_url', 'http://127.0.0.1:11434')
@@ -73,7 +74,7 @@ def translate_endpoint():
             return jsonify({'success': True, 'message': 'No bubbles detected', 'translations': [], 'engines': [], 'llm_status': 'Off', 'language': display_lang, 'image_base64': None}), 200
 
         # Phase 2: OCR 
-        ocr_results = extract_text(input_path, bubbles)
+        ocr_results = extract_text(input_path, bubbles, ocr_engine=ocr_engine, target_lang=source_lang)
         
         # Phase 3: Translate & Trace Metadata
         final_data = []

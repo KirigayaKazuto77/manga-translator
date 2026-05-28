@@ -1,0 +1,23 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+
+# Web & Image Processing
+flask==3.0.3
+flask-cors==4.0.1
+python-dotenv==1.0.1
+pillow==10.3.0
+opencv-python==4.9.0.80
+numpy<2.0.0
+
+# Machine Learning & AI
+torch
+torchvision
+ultralytics==8.2.2
+manga-ocr==0.1.14
+easyocr==1.7.1
+transformers
+accelerate
+
+# Translation
+argostranslate
+google-generativeai==0.5.4
+requests

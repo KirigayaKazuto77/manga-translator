@@ -7,14 +7,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONTS_DIR = os.path.join(BASE_DIR, 'fonts')
 
 def get_best_font(font_size, font_family="default"):
-    """Loads specific .ttf files from the fonts/ directory based on UI selection."""
+    """Loads specific .ttf/.otf files based on UI selection, scaling appropriately."""
     try:
         size = int(font_size)
     except (ValueError, TypeError):
-        size = 20 # Safe fallback
-        
-    if font_family == "default":
-        return ImageFont.load_default()
+        size = 40 # Safe fallback
         
     # Map the exact values from the frontend <select> to your physical filenames
     font_map = {
@@ -25,22 +22,25 @@ def get_best_font(font_size, font_family="default"):
         "times": "times.ttf"
     }
     
-    font_filename = font_map.get(font_family)
+    # If the user selects "default", route it to a scalable system font like Arial
+    # rather than Pillow's unscalable default bitmap.
+    if font_family == "default":
+        font_filename = "arial.ttf"
+    else:
+        font_filename = font_map.get(font_family, "arial.ttf")
     
-    if font_filename:
-        # First, try to load it from our custom fonts/ folder
-        font_path = os.path.join(FONTS_DIR, font_filename)
+    # First, try to load it from our custom fonts/ folder
+    font_path = os.path.join(FONTS_DIR, font_filename)
+    try:
+        return ImageFont.truetype(font_path, size)
+    except IOError:
+        # Fallback: Try loading it from the OS's native font directory (e.g., C:/Windows/Fonts)
         try:
-            return ImageFont.truetype(font_path, size)
+            return ImageFont.truetype(font_filename, size)
         except IOError:
-            print(f"[Warning] {font_filename} not found in {FONTS_DIR}. Falling back to system fonts.")
-            # Fallback: Try loading it from the OS's native font directory
-            try:
-                return ImageFont.truetype(font_filename, size)
-            except IOError:
-                pass
-
-    return ImageFont.load_default()
+            print(f"[Warning] {font_filename} not found locally or in OS. Falling back to unscalable Pillow bitmap.")
+            # Absolute last resort to prevent crashes (will be tiny)
+            return ImageFont.load_default()
 
 def wrap_text(text, font, max_width, draw):
     """Wraps text so it doesn't spill outside the speech bubble."""
@@ -79,9 +79,9 @@ def render_image(image_path, translated_data, output_path, style="white_fill", f
     
     # 1. Initialize the specific font exactly ONCE using the fixed size
     try:
-        base_font_size = 20 if fixed_font_size == "default" else int(fixed_font_size)
+        base_font_size = 40 if fixed_font_size == "default" else int(fixed_font_size)
     except ValueError:
-        base_font_size = 20
+        base_font_size = 40
         
     font = get_best_font(base_font_size, font_family)
     

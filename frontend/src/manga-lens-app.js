@@ -437,7 +437,7 @@ export class MangaLensApp extends LitElement {
             }
             this.markConfigChanged();
           }}>
-            <option value="default">Default (20px)</option>
+            <option value="default">Default (40px)</option>
             <option value="auto" disabled>Auto-Scale (Planned)</option>
             <option value="manual">Fixed Size</option>
           </select>
@@ -446,7 +446,7 @@ export class MangaLensApp extends LitElement {
         <div class="control-group">
           <label>Fixed Size (px)</label>
           <input type="number" id="manualSize" placeholder="e.g. 24" 
-                 disabled value="20"
+                 disabled value="40"
                  @input=${(e) => { this.fontSize = e.target.value; this.markConfigChanged(); }}>
         </div>
       </div>

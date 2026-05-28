@@ -411,36 +411,43 @@ export class MangaLensApp extends LitElement {
         </div>
 
         <div class="control-group">
-          <label>Typography Settings</label>
+          <label>Font Family</label>
           <select @change=${(e) => { this.fontFamily = e.target.value; this.markConfigChanged(); }}>
             <option value="default">System Default</option>
-            <option value="manga">Comic / Manga Style</option>
-            <option value="sans-serif">Clean Sans-Serif</option>
+            <option value="animeace">Anime Ace (Manga)</option>
+            <option value="mangatemple">Manga Temple (Manga)</option>
+            <option value="komika">Komika (Comic)</option>
+            <option value="arial">Arial (Sans-Serif)</option>
+            <option value="times">Times New Roman (Serif)</option>
           </select>
+        </div>
 
-          <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <select style="flex: 1;" @change=${(e) => {
-              const mode = e.target.value;
-              const input = this.shadowRoot.getElementById('manualSize');
-              
-              if (mode === 'manual') {
-                input.disabled = false;
-                this.fontSize = input.value || '20'; 
-              } else {
-                input.disabled = true;
-                this.fontSize = 'default'; 
-              }
-              this.markConfigChanged();
-            }}>
-              <option value="default">Default</option>
-              <option value="auto" disabled>Auto-Scale (Planned)</option>
-              <option value="manual">Fixed Size</option>
-            </select>
+        <div class="control-group">
+          <label>Font Size Mode</label>
+          <select @change=${(e) => {
+            const mode = e.target.value;
+            const input = this.shadowRoot.getElementById('manualSize');
+            
+            if (mode === 'manual') {
+              input.disabled = false;
+              this.fontSize = input.value || '20'; 
+            } else {
+              input.disabled = true;
+              this.fontSize = 'default'; 
+            }
+            this.markConfigChanged();
+          }}>
+            <option value="default">Default (20px)</option>
+            <option value="auto" disabled>Auto-Scale (Planned)</option>
+            <option value="manual">Fixed Size</option>
+          </select>
+        </div>
 
-            <input type="number" id="manualSize" placeholder="px" 
-                  style="width: 60px;" disabled
-                  @input=${(e) => { this.fontSize = e.target.value; this.markConfigChanged(); }}>
-          </div>
+        <div class="control-group">
+          <label>Fixed Size (px)</label>
+          <input type="number" id="manualSize" placeholder="e.g. 24" 
+                 disabled value="20"
+                 @input=${(e) => { this.fontSize = e.target.value; this.markConfigChanged(); }}>
         </div>
       </div>
 

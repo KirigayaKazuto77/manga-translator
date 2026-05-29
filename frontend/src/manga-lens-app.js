@@ -470,7 +470,9 @@ export class MangaLensApp extends LitElement {
         <div class="control-group">
           <label>Translation Engine</label>
           <select @change=${(e) => { this.engine = e.target.value; this.markConfigChanged(); }}>
-            <option value="nllb">NLLB-200 (Primary GPU)</option>
+            <option value="nllb-600m">NLLB-200 (600M) - Fastest</option>
+            <option value="nllb-1.3b-distilled">NLLB-200 Distilled (1.3B) - Balanced</option>
+            <option value="nllb-1.3b">NLLB-200 (1.3B) - Most Accurate</option>
             <option value="argos">Argos Translate (Fallback)</option>
           </select>
         </div>

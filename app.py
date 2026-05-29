@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 # Import our pipeline modules
 from pipeline.detector import detect_bubbles
 from pipeline.ocr_engine import extract_text
-from pipeline.translator import translate_text
+from pipeline.translator import batch_translate
 from pipeline.renderer import render_image
 
 app = Flask(__name__)
@@ -77,35 +77,30 @@ def translate_endpoint():
         ocr_results = extract_text(input_path, bubbles, ocr_engine=ocr_engine, target_lang=source_lang)
         
         # Phase 3: Translate & Trace Metadata
-        final_data = []
-        engines_used = set()
+        # We pass the entire list of OCR results to process dynamically in one batch
+        translated_results, engines_used = batch_translate(ocr_results, source_lang=source_lang, engine=engine)
         
-        # Determine base status based on request choice
+        final_data = []
         llm_status = "Off" if llm_assist == "off" else ("Gemini" if llm_assist == "gemini" else "Ollama")
         
-        for item in ocr_results:
-            # Unpack text and tracked engine name
-            english_text, engine_used = translate_text(item['text'], source_lang=source_lang, engine=engine)
-            engines_used.add(engine_used)
-            
-            # Context-Aware LLM Refinement Hook with explicit error catching
+        # Phase 3.5: Context-Aware LLM Refinement
+        for item in translated_results:
             if llm_assist == 'gemini':
                 try:
-                    # Future implementation trigger (e.g., calling Gemini API)
+                    # Future Gemini Implementation
                     pass 
                 except Exception as e:
-                    print(f"[Warning] Gemini refinement failed/limit hit: {e}")
+                    print(f"[Warning] Gemini refinement failed: {e}")
                     llm_status = "Failed (Gemini)"
                     
             elif llm_assist == 'ollama':
                 try:
-                    # Future implementation trigger for local Ollama
+                    # Future Ollama Implementation
                     pass
                 except Exception as e:
                     print(f"[Warning] Ollama refinement failed: {e}")
                     llm_status = "Failed (Ollama)"
             
-            item['english_text'] = english_text
             final_data.append(item)
 
         # Phase 4: Render

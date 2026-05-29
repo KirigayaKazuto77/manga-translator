@@ -345,6 +345,7 @@ This project uses open-source models and libraries. Check individual component l
 - [ ] Implementation of Custom Typesetting Engines (PIL or Pillow)
 - [ ] Implementation of Scraping (NHentai.net, and others)
 - [ ] Improvement of Context-Aware Translation (Offline)
+- [ ] Implement Retry Processing Button on Individual Image Cards
 
 ## 📞 Support
 

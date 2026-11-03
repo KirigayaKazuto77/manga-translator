@@ -343,7 +343,7 @@ This project uses open-source models and libraries. Check individual component l
 - [ ] Implementation of comic-text-detector
 - [ ] Implementation of LaMa Inpainting
 - [ ] Implementation of Custom Typesetting Engines (PIL or Pillow)
-- [ ] Implementation of Scraping (NHentai.net, and others)
+- [ ] Implementation of Scraping
 - [ ] Improvement of Context-Aware Translation (Offline)
 - [ ] Implement Retry Processing Button on Individual Image Cards
 

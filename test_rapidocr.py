@@ -51,5 +51,5 @@ def test_korean_webtoon(image_path):
         print(f"❌ Critical error during inference: {e}")
 
 if __name__ == "__main__":
-    target_image = sys.argv[1] if len(sys.argv) > 1 else "9.webp" 
+    target_image = sys.argv[1] if len(sys.argv) > 1 else "test_image.webp" 
     test_korean_webtoon(target_image)

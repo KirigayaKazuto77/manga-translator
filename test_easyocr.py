@@ -53,8 +53,8 @@ def test_easyocr(image_path, langs=['ko', 'en']):
         print(f"❌ Critical error during inference: {e}")
 
 if __name__ == "__main__":
-    # Point this directly to your test image (e.g., '9.webp')
-    target_image = sys.argv[1] if len(sys.argv) > 1 else "9.webp" 
+    # Point this directly to your test image (e.g., 'test_image.webp')
+    target_image = sys.argv[1] if len(sys.argv) > 1 else "test_image.webp" 
     
     # You can change the languages here: 
     # 'ja' for Japanese, 'ch_sim' for Simplified Chinese, 'ch_tra' for Traditional Chinese
